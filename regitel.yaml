@@ -1,0 +1,28 @@
+# RegIntel Configuration
+# =====================
+
+# LLM inference and live web search run through OpenAI Responses API.
+# Embeddings use a local sentence-transformer model.
+
+llm:
+  api_key: ${OPENAI_API_KEY}
+  # Responses model for planning, extraction, validation, reflection, and web search.
+  model: ${OPENAI_MODEL}
+  # Leave null for GPT-5-class Responses models; set only for models that support it.
+  temperature: null
+  max_tokens: 4096
+
+# Embeddings use a local sentence-transformer model (on-device, lighter)
+embedding:
+  model: all-MiniLM-L6-v2
+
+storage:
+  database: ~/.regitel/data/regitel.db
+  chroma_path: ~/.regitel/data/chroma
+  documents_path: ~/.regitel/data/documents
+
+research:
+  max_reflection_iterations: 3
+  confidence_threshold: 0.75
+  search_provider: openai
+  max_search_results_per_query: 10

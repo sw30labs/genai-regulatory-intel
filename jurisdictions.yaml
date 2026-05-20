@@ -1,0 +1,362 @@
+# ============================================================================
+# RegIntel — Jurisdiction Profiles (GenAI / Agentic AI Governance)
+# ============================================================================
+#
+# This file defines all jurisdictions the system tracks for GenAI governance
+# in Tier 1 banks. Each profile includes regulatory bodies, known regulations,
+# and search terms focused on generative AI governance requirements.
+#
+# HOW TO ADD A NEW JURISDICTION:
+#   1. Add a new entry under the appropriate priority section
+#   2. Set a unique `id` (lowercase, underscores for spaces)
+#   3. Set `region` to one of: eu, apac, americas, mea, global
+#   4. Add at least one regulatory_body with name + acronym + url
+#   5. List known regulations in key_regulations (the Research Agent
+#      uses these to avoid rediscovering what's already known)
+#   6. Add 2-5 search_terms — these become fallback web search queries
+#   7. Run: regitel db seed && regitel research -j <your_id>
+#
+# PRIORITY LEVELS:
+#   1 = Critical — scanned every run (default for --full)
+#   3 = Important — scanned weekly or on demand
+#   5 = Monitoring — scanned monthly or on demand
+#   6 = Low — scanned on demand only
+#   7 = Minimal — rarely changes, scan occasionally
+#
+# ============================================================================
+
+
+# ============================================================================
+# PRIORITY 1 — Critical jurisdictions, scanned every run
+# ============================================================================
+
+- id: eu
+  name: European Union
+  region: eu
+  priority: 1
+  regulatory_bodies:
+    - name: European Banking Authority
+      acronym: EBA
+      url: https://www.eba.europa.eu
+    - name: European Central Bank
+      acronym: ECB
+      url: https://www.ecb.europa.eu
+    - name: European Commission
+      acronym: EC
+      url: https://commission.europa.eu
+  key_regulations:
+    - "EU AI Act (Art. 5, Art. 50, Annex III)"
+    - "GDPR Art. 22 (automated decision-making)"
+    - "DORA (Digital Operational Resilience Act) — FM providers as ICT third parties"
+    - "EBA Guidelines on ICT and Security Risk Management"
+    - "CRD IV / EBA internal governance frameworks"
+    - "ECB SREP & internal-models guidance"
+  search_terms:
+    - "EU AI Act high-risk financial services credit scoring Annex III"
+    - "GDPR automated decision-making credit scoring SCHUFA CJEU"
+    - "DORA foundation model providers ICT third party critical CTPP"
+    - "EBA AI Act implications banking sector 2025 2026"
+    - "EU AI Act Article 50 transparency chatbots GenAI banking"
+    - "ECB AI model risk management SREP"
+    - "Digital Omnibus Act AI Act delay"
+
+- id: uk
+  name: United Kingdom
+  region: eu
+  priority: 1
+  regulatory_bodies:
+    - name: Bank of England
+      acronym: BoE
+      url: https://www.bankofengland.co.uk
+    - name: Financial Conduct Authority
+      acronym: FCA
+      url: https://www.fca.org.uk
+    - name: Prudential Regulation Authority
+      acronym: PRA
+      url: https://www.bankofengland.co.uk/prudential-regulation
+  key_regulations:
+    - "PRA SS1/23 (Model Risk Management — captures AI/ML)"
+    - "FCA AI Update (existing rules apply to AI)"
+    - "SYSC governance principles"
+    - "SMCR Senior Managers Regime"
+    - "Consumer Duty"
+    - "PS6/21 Operational Resilience"
+  search_terms:
+    - "PRA SS1/23 AI model risk management banks"
+    - "FCA AI governance financial services existing rules"
+    - "UK bank AI deployment requirements model validation"
+    - "FCA Consumer Duty generative AI banking"
+    - "PRA AI governance guidance update 2025 2026"
+    - "UK data residency AI model hosting banking"
+
+- id: usa
+  name: United States
+  region: americas
+  priority: 1
+  regulatory_bodies:
+    - name: Office of the Comptroller of the Currency
+      acronym: OCC
+      url: https://www.occ.treas.gov
+    - name: Federal Reserve
+      acronym: Fed
+      url: https://www.federalreserve.gov
+    - name: Consumer Financial Protection Bureau
+      acronym: CFPB
+      url: https://www.consumerfinance.gov
+    - name: New York Department of Financial Services
+      acronym: NYDFS
+      url: https://www.dfs.ny.gov
+  key_regulations:
+    - "OCC Bulletin 2026-13 / Fed SR 26-2 (MRM — GenAI explicitly excluded)"
+    - "OCC 2023-17 / Fed SR 23-4 (third-party risk)"
+    - "NYDFS AI & Cybersecurity guidance (Oct 2024 + Oct 2025)"
+    - "Treasury Financial Services AI RMF (Mar 2026)"
+    - "Colorado AI Act (Jun 2026, bank carve-out)"
+    - "NYC LL144 (bias audits for hiring)"
+    - "ECOA / FCRA fair lending statutes"
+  search_terms:
+    - "OCC SR 26-2 interagency MRM GenAI excluded gap"
+    - "NYDFS AI third-party risk banks cybersecurity guidance"
+    - "OCC generative AI guidance banks 2025 2026"
+    - "Treasury AI risk management framework financial services"
+    - "US bank GenAI governance model validation requirements"
+    - "Colorado AI Act financial institution carve-out"
+    - "CFPB AI credit underwriting fair lending"
+    - "FedNow AI security requirements"
+
+- id: singapore
+  name: Singapore
+  region: apac
+  priority: 1
+  regulatory_bodies:
+    - name: Monetary Authority of Singapore
+      acronym: MAS
+      url: https://www.mas.gov.sg
+    - name: Personal Data Protection Commission
+      acronym: PDPC
+      url: https://www.pdpc.gov.sg
+  key_regulations:
+    - "MAS Information Paper on AI Model Risk Management (Dec 2024)"
+    - "MAS FEAT (Fairness, Ethics, Accountability, Transparency)"
+    - "MAS Veritas toolkit"
+    - "MAS Notice 658 (Technology Risk Management)"
+    - "MAS TRM Guidelines"
+    - "PDPA (Personal Data Protection Act)"
+  search_terms:
+    - "MAS AI model risk management Singapore banks"
+    - "MAS FEAT AI financial services guidelines"
+    - "Singapore GenAI governance banking requirements"
+    - "MAS Veritas AI explainability toolkit"
+    - "MAS Notice 658 AI models technology risk"
+
+- id: switzerland
+  name: Switzerland
+  region: eu
+  priority: 1
+  regulatory_bodies:
+    - name: Swiss Financial Market Supervisory Authority
+      acronym: FINMA
+      url: https://www.finma.ch
+  key_regulations:
+    - "FINMA Guidance 08/2024 (AI in financial services)"
+    - "FINMA Circular 2018/3 Outsourcing"
+    - "FINMA Circular 2017/1 Corporate Governance — Banks"
+  search_terms:
+    - "FINMA AI inventory requirements risk classification"
+    - "FINMA 08/2024 explainability AI banking"
+    - "Switzerland GenAI governance tier 1 banks"
+    - "FINMA AI oversight circular update 2025 2026"
+    - "Swiss bank AI model validation FINMA"
+
+- id: global_standards
+  name: Global Standards (BIS / FSB / BCBS)
+  region: global
+  priority: 1
+  regulatory_bodies:
+    - name: Basel Committee on Banking Supervision
+      acronym: BCBS
+      url: https://www.bis.org
+    - name: Financial Stability Board
+      acronym: FSB
+      url: https://www.fsb.org
+    - name: Bank for International Settlements
+      acronym: BIS
+      url: https://www.bis.org
+  key_regulations:
+    - "BCBS Newsletter on AI and PSMOR (Dec 2024)"
+    - "FSB Financial Stability Implications of AI (Nov 2024)"
+    - "BCBS Pillar 2 / ICAAP frameworks"
+  search_terms:
+    - "BCBS AI Pillar 2 banking prudential standards"
+    - "FSB AI financial stability implications 2024 2025"
+    - "BIS BCBS AI model risk management global"
+    - "FSB foundation model risk financial sector"
+    - "BCBS PSMOR AI integration update"
+
+
+# ============================================================================
+# PRIORITY 3 — Important jurisdictions, scanned weekly or on demand
+# ============================================================================
+
+- id: australia
+  name: Australia
+  region: apac
+  priority: 3
+  regulatory_bodies:
+    - name: Australian Prudential Regulation Authority
+      acronym: APRA
+      url: https://www.apra.gov.au
+  key_regulations:
+    - "APRA CPS 234 Information Security"
+    - "APRA Enterprise Risk Governance (CPG 340/2023)"
+  search_terms:
+    - "APRA AI governance requirements banks 2025"
+    - "Australia GenAI banking prudential standards"
+    - "APRA model risk management AI update"
+
+- id: hong_kong
+  name: Hong Kong
+  region: apac
+  priority: 3
+  regulatory_bodies:
+    - name: Hong Kong Monetary Authority
+      acronym: HKMA
+      url: https://www.hkma.gov.hk
+  key_regulations:
+    - "HKMA Virtual Bank Guidelines (AI provisions)"
+    - "HKMA C-RAF (Cyber Resilience Assessment Framework)"
+  search_terms:
+    - "HKMA AI model governance banking requirements"
+    - "Hong Kong GenAI regulation financial institutions"
+    - "HKMA virtual bank AI model validation"
+
+- id: india
+  name: India
+  region: apac
+  priority: 3
+  regulatory_bodies:
+    - name: Reserve Bank of India
+      acronym: RBI
+      url: https://www.rbi.org.in
+  key_regulations:
+    - "RBI Master Direction on IT Governance"
+    - "RBI Cyber Security Framework for Banks"
+  search_terms:
+    - "RBI AI governance requirements banks India"
+    - "India GenAI regulation banking RBI 2025"
+    - "SEBI AI model risk management"
+
+- id: brazil
+  name: Brazil
+  region: americas
+  priority: 3
+  regulatory_bodies:
+    - name: Central Bank of Brazil
+      acronym: BCB
+      url: https://www.bcb.gov.br
+  key_regulations:
+    - "CMN Resolution 5,274/2025"
+    - "BCB Resolution 538/2025"
+  search_terms:
+    - "Brazil AI governance banking requirements BCB"
+    - "Brazil GenAI regulation financial institutions 2025"
+    - "BCB AI model risk management update"
+
+- id: uae
+  name: United Arab Emirates
+  region: mea
+  priority: 3
+  regulatory_bodies:
+    - name: Dubai Financial Services Authority
+      acronym: DFSA
+      url: https://www.dfsa.ae
+    - name: Central Bank of the UAE
+      acronym: CBUAE
+      url: https://www.centralbank.ae
+  key_regulations:
+    - "DFSA Technology Rules (AI provisions)"
+    - "UAE AI Strategy 2031"
+  search_terms:
+    - "UAE AI regulation banking financial services"
+    - "DFSA AI governance requirements Dubai"
+    - "CBUAE GenAI banking requirements"
+
+- id: japan
+  name: Japan
+  region: apac
+  priority: 3
+  regulatory_bodies:
+    - name: Financial Services Agency
+      acronym: FSA-JP
+      url: https://www.fsa.go.jp
+  key_regulations:
+    - "FSA AI Governance Guidelines for Financial Institutions"
+  search_terms:
+    - "Japan FSA AI governance banking requirements"
+    - "Japan GenAI regulation financial institutions 2025"
+    - "FSA AI model validation banking Japan"
+
+
+# ============================================================================
+# PRIORITY 5 — Monitoring, scanned monthly or on demand
+# ============================================================================
+
+- id: austria
+  name: Austria
+  region: eu
+  priority: 5
+  regulatory_bodies:
+    - name: Austrian Financial Market Authority
+      acronym: FMA
+      url: https://www.fma.gv.at
+  key_regulations:
+    - "FMA IT Guidelines"
+    - "DORA (via EU transposition)"
+  search_terms:
+    - "Austria FMA AI governance banking"
+    - "Austria DORA AI Act transposition"
+
+- id: luxembourg
+  name: Luxembourg
+  region: eu
+  priority: 5
+  regulatory_bodies:
+    - name: Commission de Surveillance du Secteur Financier
+      acronym: CSSF
+      url: https://www.cssf.lu
+  key_regulations:
+    - "CSSF Circular 20/750 on ICT Risk Management"
+    - "DORA (via EU transposition)"
+  search_terms:
+    - "CSSF AI governance banking Luxembourg"
+    - "Luxembourg DORA AI Act implementation"
+
+- id: canada
+  name: Canada
+  region: americas
+  priority: 5
+  regulatory_bodies:
+    - name: Office of the Superintendent of Financial Institutions
+      acronym: OSFI
+      url: https://www.osfi-bsif.gc.ca
+  key_regulations:
+    - "OSFI Guideline on Management of Cyber Incident Risk"
+    - "Canada AI and Data Act (proposed)"
+  search_terms:
+    - "OSFI AI governance banking Canada"
+    - "Canada AI Act financial services implications"
+    - "OSFI AI model risk management guideline"
+
+- id: korea_south
+  name: South Korea
+  region: apac
+  priority: 5
+  regulatory_bodies:
+    - name: Financial Services Commission
+      acronym: FSC-KR
+      url: https://www.fsc.go.kr
+  key_regulations:
+    - "FSC AI Utilization Guidelines for Financial Institutions"
+  search_terms:
+    - "South Korea FSC AI governance banking"
+    - "Korea GenAI regulation financial institutions"
