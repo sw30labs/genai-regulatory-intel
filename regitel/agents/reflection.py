@@ -8,6 +8,7 @@ import logging
 from regitel.agents.research import _load_research_baseline
 from regitel.models.state import ResearchState
 from regitel.utils.json_parse import parse_model_json
+from regitel.utils.llm_errors import LLMProviderError, is_insufficient_quota_error
 from regitel.utils.prompts import REFLECTION_PROMPT, REFLECTION_SYSTEM
 from regitel.utils.usage import usage_from_message
 
@@ -16,8 +17,15 @@ logger = logging.getLogger(__name__)
 
 def _safe_parse_json(text: str):
     parsed = parse_model_json(text, logger=logger, context="Reflection")
-    if parsed is not None:
+    if isinstance(parsed, dict):
         return parsed
+    if isinstance(parsed, list):
+        return {
+            "analysis": "Reflection produced incomplete non-object output",
+            "actions": [],
+            "drop_regulation_ids": [],
+            "keep_regulation_ids": [],
+        }
     return {"analysis": "Parse error", "actions": [], "drop_regulation_ids": [],
             "keep_regulation_ids": []}
 
@@ -81,6 +89,7 @@ def reflect_node(state: ResearchState, *, llm) -> dict:
     # Retry with backoff — reflection calls are prone to transient connection errors
     import time
     response = None
+    last_error = None
     for attempt in range(3):
         try:
             response = llm.invoke([
@@ -89,17 +98,22 @@ def reflect_node(state: ResearchState, *, llm) -> dict:
             ])
             break
         except Exception as e:
+            last_error = e
+            if is_insufficient_quota_error(e):
+                logger.error("Reflection LLM provider quota exhausted: %s", e)
+                raise LLMProviderError(
+                    f"Reflection LLM provider quota exhausted: {e}",
+                    fatal=True,
+                ) from e
             logger.warning(f"Reflection LLM call failed (attempt {attempt+1}/3): {e}")
             if attempt < 2:
                 time.sleep(2 ** attempt)  # 1s, 2s backoff
             else:
-                logger.error("Reflection LLM call failed after 3 attempts — "
-                             "forcing pass-through")
-                return {
-                    "iteration_count": iteration,
-                    "reflection_notes": f"LLM connection failed after 3 retries: {e}",
-                    "validation_passed": True,  # Force exit — persist what we have
-                }
+                logger.error("Reflection LLM call failed after 3 attempts")
+                raise LLMProviderError(
+                    f"Reflection LLM call failed after 3 attempts: {last_error}",
+                    fatal=False,
+                ) from e
 
     reflection = _safe_parse_json(response.content)
 
@@ -110,15 +124,26 @@ def reflect_node(state: ResearchState, *, llm) -> dict:
         logger.info(f"Reflection dropped {len(drop_ids)} findings: {drop_ids}")
 
     # Generate additional search queries from reflection actions
+    allowed_jids = set(state.get("jurisdictions", [])) or set(jids)
+    default_jid = next(iter(state.get("jurisdictions", []) or jids), "unknown")
     new_queries = []
     for action in reflection.get("actions", []):
         if action.get("search_query"):
+            target_jid = action.get("jurisdiction_id")
+            if not target_jid and action.get("regulation_id"):
+                target_jid = str(action["regulation_id"]).split("-")[0]
+            if target_jid and target_jid not in allowed_jids:
+                logger.warning(
+                    "Skipping reflection query outside target jurisdiction(s) %s: %s",
+                    sorted(allowed_jids),
+                    action.get("search_query"),
+                )
+                continue
             new_queries.append({
                 "query": action["search_query"],
                 "purpose": action.get("instruction", "reflection-driven re-research"),
                 "priority": 1,
-                "jurisdiction_id": action.get("regulation_id", "").split("-")[0]
-                                   if action.get("regulation_id") else jids[0],
+                "jurisdiction_id": target_jid or default_jid,
             })
 
     notes = reflection.get("analysis", "No analysis provided")

@@ -13,6 +13,7 @@ from regitel.storage.database import (
     DatabaseManager,
     RegulationRow,
 )
+from regitel.utils.canonical import stable_regulation_id
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +29,27 @@ class DuplicateGroup:
 
 
 def find_duplicates(session: Session) -> list[DuplicateGroup]:
-    """Detect duplicate regulations by (jurisdiction_id, name)."""
+    """Detect duplicate regulations by stable canonical identity."""
     regs = (
         session.query(RegulationRow)
         .order_by(RegulationRow.jurisdiction_id, RegulationRow.name)
         .all()
     )
 
-    # Group by (jurisdiction_id, normalized_name)
+    # Group by deterministic regulation identity rather than LLM-generated IDs.
     groups: dict[tuple[str, str], list[RegulationRow]] = defaultdict(list)
     for r in regs:
-        key = (r.jurisdiction_id, r.name.strip().lower())
+        key = (
+            r.jurisdiction_id,
+            stable_regulation_id({
+                "regulation_id": r.id,
+                "jurisdiction_id": r.jurisdiction_id,
+                "name": r.name,
+                "short_name": r.short_name,
+                "issuing_body": r.issuing_body,
+                "url": r.url,
+            }),
+        )
         groups[key].append(r)
 
     duplicates: list[DuplicateGroup] = []
@@ -65,7 +76,7 @@ def find_duplicates(session: Session) -> list[DuplicateGroup]:
             canonical_name=keep.name,
             keep_id=keep.id,
             remove_ids=remove,
-            reason=f"Same name in {jid}, keeping highest confidence ({keep.confidence_score:.2f})",
+            reason=f"Same canonical identity in {jid}, keeping highest confidence ({keep.confidence_score:.2f})",
         ))
 
     return duplicates

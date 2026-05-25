@@ -14,6 +14,9 @@ class TestRegitelConfig:
         assert cfg.llm.temperature is None
         assert cfg.llm.max_tokens == 4096
         assert cfg.research.search_provider == "openai"
+        assert cfg.research.max_queries_per_jurisdiction == 8
+        assert cfg.research.validator_batch_size == 4
+        assert cfg.research.quality_gate_reflection is True
 
     def test_embedding_defaults(self):
         cfg = RegitelConfig()

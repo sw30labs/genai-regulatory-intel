@@ -57,6 +57,9 @@ class ResearchConfig(BaseModel):
     confidence_threshold: float = 0.75
     search_provider: str = "openai"
     max_search_results_per_query: int = 10
+    max_queries_per_jurisdiction: int = 8
+    validator_batch_size: int = 4
+    quality_gate_reflection: bool = True
 
 
 class RegulatoryBodyProfile(BaseModel):

@@ -32,11 +32,11 @@ class ResearchState(TypedDict, total=False):
     full_scan: bool
 
     # --- Plan phase ---
-    search_queries: Annotated[list[dict], _merge_lists]
+    search_queries: list[dict]
 
     # --- Research phase ---
     raw_findings: Annotated[list[dict], _merge_lists]
-    structured_findings: Annotated[list[dict], _merge_lists]
+    structured_findings: list[dict]
 
     # --- Validation phase ---
     validation_result: dict
@@ -46,6 +46,7 @@ class ResearchState(TypedDict, total=False):
     reflection_notes: str
     iteration_count: int
     max_iterations: int  # default 3
+    quality_gate_reflection: bool
 
     # --- Output ---
     changes_detected: Annotated[list[dict], _merge_lists]

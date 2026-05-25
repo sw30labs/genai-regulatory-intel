@@ -31,6 +31,7 @@ from typing_extensions import Annotated, TypedDict
 
 from regitel.config import RegitelConfig
 from regitel.seeds import get_jurisdiction_seeds
+from regitel.utils.llm_errors import LLMProviderError, is_insufficient_quota_error
 from regitel.utils.usage import merge_usage
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ class JurisdictionResult(TypedDict, total=False):
     reflection_iterations: int
     duration_seconds: float
     error_message: Optional[str]
+    fatal: bool
     changes: list[dict]
     token_usage: dict
 
@@ -71,6 +73,7 @@ class BatchState(TypedDict, total=False):
     target_jurisdictions: list[str]   # ordered list of jurisdiction IDs
     full_scan: bool
     dry_run: bool
+    quick_scan: bool
     config: dict                       # serialised RegitelConfig (we pass the object via closure)
 
     # --- Cursor ---
@@ -119,12 +122,13 @@ def run_one_node(state: BatchState, *, config: RegitelConfig) -> dict:
 
     jid = state["current_jurisdiction"]
     dry_run = state.get("dry_run", False)
+    quick = state.get("quick_scan", False)
 
     # Look up display name from seeds
     seeds = {s["id"]: s for s in get_jurisdiction_seeds()}
     jname = seeds.get(jid, {}).get("name", jid)
 
-    logger.info("Batch: scanning %s (%s) — dry_run=%s", jid, jname, dry_run)
+    logger.info("Batch: scanning %s (%s) — dry_run=%s, quick=%s", jid, jname, dry_run, quick)
     t0 = time.monotonic()
 
     try:
@@ -133,6 +137,7 @@ def run_one_node(state: BatchState, *, config: RegitelConfig) -> dict:
             jurisdictions=[jid],
             full_scan=False,          # single-jurisdiction, not full
             dry_run=dry_run,
+            quick=quick,
         )
 
         elapsed = time.monotonic() - t0
@@ -152,6 +157,7 @@ def run_one_node(state: BatchState, *, config: RegitelConfig) -> dict:
             "reflection_iterations": result.get("iteration_count", 0),
             "duration_seconds": round(elapsed, 1),
             "error_message": result.get("error"),
+            "fatal": False,
             "changes": changes,
             "token_usage": token_usage,
         }
@@ -159,6 +165,7 @@ def run_one_node(state: BatchState, *, config: RegitelConfig) -> dict:
     except Exception as exc:
         elapsed = time.monotonic() - t0
         logger.error("Batch: %s failed — %s", jid, exc)
+        fatal = isinstance(exc, LLMProviderError) and exc.fatal
         jr: JurisdictionResult = {
             "jurisdiction_id": jid,
             "jurisdiction_name": jname,
@@ -170,6 +177,7 @@ def run_one_node(state: BatchState, *, config: RegitelConfig) -> dict:
             "reflection_iterations": 0,
             "duration_seconds": round(elapsed, 1),
             "error_message": f"{type(exc).__name__}: {exc}",
+            "fatal": fatal,
             "changes": [],
             "token_usage": {},
         }
@@ -184,6 +192,14 @@ def record_result_node(state: BatchState) -> dict:
 
 def check_done_node(state: BatchState) -> str:
     """Conditional: are there more jurisdictions to scan?"""
+    last = state.get("last_result", {})
+    if last.get("fatal") or is_insufficient_quota_error(last.get("error_message", "")):
+        logger.error(
+            "Batch: stopping early after fatal provider error in %s",
+            last.get("jurisdiction_id", "unknown"),
+        )
+        return "summarise"
+
     idx = state.get("current_index", 0)
     total = len(state["target_jurisdictions"])
     if idx + 1 >= total:
@@ -283,6 +299,7 @@ def run_batch_scan(
     jurisdictions: Optional[list[str]] = None,
     priority: Optional[int] = None,
     dry_run: bool = False,
+    quick: bool = False,
 ) -> BatchState:
     """Run an isolated per-jurisdiction scan across multiple regions.
 
@@ -296,6 +313,8 @@ def run_batch_scan(
         ``None`` or ``0`` means all.
     dry_run : bool
         If True, use mock search — no API calls.
+    quick : bool
+        If True, reduce query fan-out and cap reflection to one repair pass.
 
     Returns
     -------
@@ -332,6 +351,7 @@ def run_batch_scan(
         "target_jurisdictions": target_jids,
         "full_scan": True,
         "dry_run": dry_run,
+        "quick_scan": quick,
         "config": {},
         "current_index": -1,
         "current_jurisdiction": "",
@@ -344,5 +364,6 @@ def run_batch_scan(
         "summary": {},
     }
 
-    result = graph.invoke(initial_state)
+    recursion_limit = max(25, len(target_jids) * 4 + 10)
+    result = graph.invoke(initial_state, config={"recursion_limit": recursion_limit})
     return result

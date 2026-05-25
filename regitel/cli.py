@@ -400,8 +400,10 @@ def export_data(
 @click.option("--jurisdiction", "-j", default=None, help="Target jurisdiction")
 @click.option("--full", is_flag=True, default=False, help="Full deep scan")
 @click.option("--dry-run", is_flag=True, default=False, help="Use mock search (no API calls)")
+@click.option("--quick", is_flag=True, default=False,
+              help="Faster local-model scan: fewer queries and one repair pass")
 @click.pass_obj
-def research(ctx: AppContext, jurisdiction: str | None, full: bool, dry_run: bool):
+def research(ctx: AppContext, jurisdiction: str | None, full: bool, dry_run: bool, quick: bool):
     """Run the research pipeline to discover AI governance regulations."""
     from regitel.graphs.research_graph import run_research
 
@@ -409,6 +411,10 @@ def research(ctx: AppContext, jurisdiction: str | None, full: bool, dry_run: boo
 
     if dry_run:
         console.print("[warning]DRY RUN — using mock search, no API calls[/warning]\n")
+    if quick:
+        console.print(
+            "[warning]QUICK RUN — fewer queries and one repair pass[/warning]\n"
+        )
 
     mode = "full scan" if full else (f"jurisdiction: {jurisdiction}" if jurisdiction else "priority-1")
     console.print(f"[info]Starting AI governance research pipeline ({mode})...[/info]\n")
@@ -419,6 +425,7 @@ def research(ctx: AppContext, jurisdiction: str | None, full: bool, dry_run: boo
             jurisdictions=jurisdictions,
             full_scan=full,
             dry_run=dry_run,
+            quick=quick,
         )
 
         # Display results
@@ -474,9 +481,11 @@ def research(ctx: AppContext, jurisdiction: str | None, full: bool, dry_run: boo
               help="Comma-separated jurisdiction IDs (e.g. eu,uk,singapore)")
 @click.option("--dry-run", is_flag=True, default=False,
               help="Use mock search — no API calls")
+@click.option("--quick", is_flag=True, default=False,
+              help="Faster local-model scan: fewer queries and one repair pass")
 @click.pass_obj
 def scan(ctx: AppContext, scan_all: bool, priority: int | None,
-         jurisdiction: str | None, dry_run: bool):
+         jurisdiction: str | None, dry_run: bool, quick: bool):
     """Run an isolated per-jurisdiction batch scan for AI governance regulations.
 
     Each jurisdiction gets its own research pipeline invocation so failures
@@ -502,6 +511,10 @@ def scan(ctx: AppContext, scan_all: bool, priority: int | None,
 
     if dry_run:
         console.print("[warning]DRY RUN — using mock search, no API calls[/warning]\n")
+    if quick:
+        console.print(
+            "[warning]QUICK RUN — fewer queries and one repair pass[/warning]\n"
+        )
 
     # Describe what we're about to do
     if scan_all:
@@ -518,6 +531,7 @@ def scan(ctx: AppContext, scan_all: bool, priority: int | None,
         jurisdictions=jids,
         priority=priority if not scan_all else None,
         dry_run=dry_run,
+        quick=quick,
     )
 
     # \u2500\ufe0f Per-jurisdiction results table \u2500\ufe0f

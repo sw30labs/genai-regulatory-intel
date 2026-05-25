@@ -54,6 +54,7 @@ regitel doctor
 |---|---|
 | `regitel db init --seed` | Initialize database and seed jurisdiction profiles |
 | `regitel scan -j eu` | Research GenAI regulations for a jurisdiction |
+| `regitel scan -j eu --quick` | Lower-latency scan for local OpenAI-compatible models |
 | `regitel scan --all` | Scan all jurisdictions |
 | `regitel query search -t "AI Act"` | Structured text search |
 | `regitel query semantic "model risk for Gen AI"` | Natural language search |
@@ -85,6 +86,7 @@ regitel doctor
 ```
 
 Live research uses OpenAI for both LLM inference and hosted web search. Embeddings run locally via sentence-transformers.
+For local OpenAI-compatible inference, such as oMLX, use `--quick` to reduce query fan-out and cap reflection to one repair pass while still running validation.
 
 ## GenAI Regulatory Domain Coverage
 

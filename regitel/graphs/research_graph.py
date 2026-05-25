@@ -20,10 +20,33 @@ from regitel.config import RegitelConfig
 from regitel.models.state import ResearchState
 from regitel.seeds import get_jurisdiction_seeds
 from regitel.storage.database import DatabaseManager
-from regitel.tools.search import MockSearchTool, OpenAIWebSearchTool
+from regitel.tools.search import MockSearchTool, OpenAIWebSearchTool, TavilySearchTool
 from regitel.utils.llm import get_agent_llm
 
 logger = logging.getLogger(__name__)
+
+
+def _apply_quick_scan_defaults(config: RegitelConfig) -> RegitelConfig:
+    """Return a copy tuned for lower-latency local model scans."""
+    quick_config = config.model_copy(deep=True)
+    quick_config.research.max_queries_per_jurisdiction = min(
+        quick_config.research.max_queries_per_jurisdiction,
+        3,
+    )
+    quick_config.research.max_search_results_per_query = min(
+        quick_config.research.max_search_results_per_query,
+        3,
+    )
+    quick_config.research.validator_batch_size = min(
+        quick_config.research.validator_batch_size,
+        3,
+    )
+    quick_config.research.max_reflection_iterations = min(
+        quick_config.research.max_reflection_iterations,
+        1,
+    )
+    quick_config.research.quality_gate_reflection = False
+    return quick_config
 
 
 def _build_seeds_map() -> dict:
@@ -58,7 +81,7 @@ def _route_after_validation(state: ResearchState) -> str:
     # The reflection agent will either confirm (no new queries → persist)
     # or suggest improvements (new queries → re-research).
     findings = state.get("structured_findings", [])
-    if iteration == 0 and len(findings) > 0:
+    if state.get("quality_gate_reflection", True) and iteration == 0 and len(findings) > 0:
         logger.info(
             "Validation passed on first iteration with %d findings "
             "— routing to reflection for quality gate",
@@ -105,21 +128,36 @@ def build_research_graph(
         validator_llm = get_agent_llm(config, "validator")
         reflection_llm = get_agent_llm(config, "reflection")
         search_provider = config.research.search_provider.lower()
-        if search_provider != "openai":
-            logger.warning("Unsupported search provider '%s'; using OpenAI", search_provider)
-        search_tool = OpenAIWebSearchTool(
-            api_key=config.llm.api_key,
-            model=config.llm.model,
-            base_url=config.llm.base_url,
-            max_results=config.research.max_search_results_per_query,
-        )
+        if search_provider == "tavily":
+            search_tool = TavilySearchTool(
+                max_results=config.research.max_search_results_per_query,
+            )
+        else:
+            if search_provider != "openai":
+                logger.warning("Unsupported search provider '%s'; using OpenAI", search_provider)
+            search_tool = OpenAIWebSearchTool(
+                api_key=config.llm.api_key,
+                model=config.llm.model,
+                base_url=config.llm.base_url,
+                max_results=config.research.max_search_results_per_query,
+            )
 
     # Bind dependencies to node functions via partial
     _plan = partial(plan_node, llm=research_llm, seeds_map=seeds_map,
                     db_manager=db_manager)
-    _research = partial(research_node, llm=research_llm, search_tool=search_tool,
-                        seeds_map=seeds_map)
-    _validate = partial(validate_node, llm=validator_llm, db_manager=db_manager)
+    _research = partial(
+        research_node,
+        llm=research_llm,
+        search_tool=search_tool,
+        seeds_map=seeds_map,
+        max_queries_per_jurisdiction=config.research.max_queries_per_jurisdiction,
+    )
+    _validate = partial(
+        validate_node,
+        llm=validator_llm,
+        db_manager=db_manager,
+        batch_size=config.research.validator_batch_size,
+    )
     _reflect = partial(reflect_node, llm=reflection_llm)
     _persist = partial(persist_node, db_manager=db_manager)
 
@@ -161,6 +199,7 @@ def run_research(
     jurisdictions: Optional[list[str]] = None,
     full_scan: bool = False,
     dry_run: bool = False,
+    quick: bool = False,
 ) -> ResearchState:
     """Run the research pipeline and return the final state.
 
@@ -173,6 +212,9 @@ def run_research(
     Returns:
         Final ResearchState with results
     """
+    if quick:
+        config = _apply_quick_scan_defaults(config)
+
     # Determine which jurisdictions to scan
     if full_scan:
         target_jids = config.all_jurisdictions
@@ -181,8 +223,14 @@ def run_research(
     else:
         target_jids = config.jurisdiction_priorities.get("priority_1", [])
 
-    logger.info(f"Starting research scan — {len(target_jids)} jurisdictions "
-                f"({'dry-run' if dry_run else 'live'}): {target_jids}")
+    logger.info(
+        "Starting research scan — %d jurisdictions (%s, quick=%s, max_queries=%d): %s",
+        len(target_jids),
+        "dry-run" if dry_run else "live",
+        quick,
+        config.research.max_queries_per_jurisdiction,
+        target_jids,
+    )
 
     graph = build_research_graph(config, dry_run=dry_run)
 
@@ -198,6 +246,7 @@ def run_research(
         "reflection_notes": "",
         "iteration_count": 0,
         "max_iterations": config.research.max_reflection_iterations,
+        "quality_gate_reflection": config.research.quality_gate_reflection,
         "changes_detected": [],
         "research_run_id": str(uuid.uuid4())[:8],
         "confidence_score": 0.0,

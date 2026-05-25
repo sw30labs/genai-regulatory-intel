@@ -49,6 +49,9 @@ cached input, reasoning tokens, LLM call count, and web search call count.
 # Research GenAI regulations for the EU (AI Act, GDPR Art. 22)
 regitel scan -j eu
 
+# Faster local-model scan, useful with OpenAI-compatible runtimes such as oMLX
+regitel scan -j eu --quick
+
 # Research US GenAI regulations (NY DFS, CFPB, OCC)
 regitel scan -j usa
 

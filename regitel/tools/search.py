@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Optional
 
+import httpx
 from openai import OpenAI
 
 from regitel.utils.json_parse import parse_model_json
@@ -147,6 +148,90 @@ Prefer official regulators, statutes, supervisory authorities, and primary sourc
                 "title": str(item.get("title", "")),
                 "url": str(item.get("url", "")),
                 "content": str(item.get("content", "")),
+                "score": score,
+            })
+        return results
+
+    def consume_usage(self) -> dict:
+        """Return and reset usage from the most recent search call."""
+        usage = self.last_usage
+        self.last_usage = {}
+        return usage
+
+    def search_batch(self, queries: list[dict]) -> dict[str, list[dict]]:
+        """Execute multiple search queries, return results keyed by query string."""
+        results = {}
+        for q in queries:
+            query_str = q["query"] if isinstance(q, dict) else q
+            domains = q.get("domains") if isinstance(q, dict) else None
+            results[query_str] = self.search(
+                query_str,
+                include_domains=domains,
+            )
+        return results
+
+
+class TavilySearchTool:
+    """Tavily-backed web search for local OpenAI-compatible LLM runtimes."""
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        max_results: int = 10,
+        base_url: str = "https://api.tavily.com/search",
+        client: httpx.Client | None = None,
+    ):
+        self.api_key = api_key or os.environ.get("TAVILY_API_KEY", "")
+        self.max_results = max_results
+        self.base_url = base_url
+        self.client = client or httpx.Client(timeout=30.0)
+        self.last_usage: dict = {}
+
+    def search(
+        self,
+        query: str,
+        max_results: Optional[int] = None,
+        include_domains: Optional[list[str]] = None,
+        search_depth: str = "advanced",
+    ) -> list[dict]:
+        """Execute a Tavily search and return title/url/content/score rows."""
+        if not self.api_key:
+            logger.warning("No Tavily API key set — returning empty results")
+            return []
+
+        limit = min(max_results or self.max_results, 5)
+        payload: dict[str, object] = {
+            "api_key": self.api_key,
+            "query": query,
+            "search_depth": search_depth,
+            "max_results": limit,
+        }
+        if include_domains:
+            payload["include_domains"] = include_domains
+
+        try:
+            response = self.client.post(self.base_url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as e:
+            logger.error("Tavily search failed for '%s': %s", query, e)
+            return []
+
+        self.last_usage = {"web_search_calls": 1}
+        rows = data.get("results", []) if isinstance(data, dict) else []
+        results = []
+        for idx, item in enumerate(rows[:limit]):
+            if not isinstance(item, dict):
+                continue
+            try:
+                score = float(item.get("score", max(0.0, 1.0 - idx * 0.05)))
+            except (TypeError, ValueError):
+                score = max(0.0, 1.0 - idx * 0.05)
+
+            results.append({
+                "title": str(item.get("title", "")),
+                "url": str(item.get("url", "")),
+                "content": str(item.get("content") or item.get("raw_content") or ""),
                 "score": score,
             })
         return results

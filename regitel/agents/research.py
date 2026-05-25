@@ -8,6 +8,7 @@ from typing import Any
 
 from regitel.models.state import ResearchState
 from regitel.utils.json_parse import parse_model_json
+from regitel.utils.llm_errors import LLMProviderError, is_insufficient_quota_error
 from regitel.utils.prompts import (
     RESEARCH_EXTRACT_PROMPT,
     RESEARCH_PLAN_PROMPT,
@@ -31,6 +32,7 @@ def _load_research_baseline() -> str:
 def _invoke_with_retry(llm, system_prompt: str, user_prompt: str, max_retries: int = 3):
     """Invoke LLM with retry and exponential backoff."""
     import time
+    last_error = None
     for attempt in range(max_retries):
         try:
             response = llm.invoke([
@@ -42,13 +44,22 @@ def _invoke_with_retry(llm, system_prompt: str, user_prompt: str, max_retries: i
                 logger.warning("LLM response incomplete: %s", metadata.get("incomplete_details"))
             return response
         except Exception as e:
+            last_error = e
+            if is_insufficient_quota_error(e):
+                logger.error("LLM provider quota exhausted: %s", e)
+                raise LLMProviderError(
+                    f"LLM provider quota exhausted: {e}",
+                    fatal=True,
+                ) from e
             logger.warning(f"LLM call failed (attempt {attempt+1}/{max_retries}): {e}")
             if attempt < max_retries - 1:
                 time.sleep(2 ** attempt)
             else:
                 logger.error(f"LLM call failed after {max_retries} attempts")
-                return None
-    return None
+                raise LLMProviderError(
+                    f"LLM call failed after {max_retries} attempts: {last_error}",
+                    fatal=False,
+                ) from e
 
 
 def _format_jurisdiction_profile(seed: dict) -> str:
@@ -72,6 +83,34 @@ def _format_jurisdiction_profile(seed: dict) -> str:
 def _safe_parse_json(text: str) -> Any:
     """Parse JSON from LLM output, stripping markdown fences if present."""
     return parse_model_json(text, logger=logger, context="Research agent") or []
+
+
+def _append_target_jurisdiction_findings(
+    findings: list[dict],
+    extracted: Any,
+    *,
+    target_jid: str,
+) -> None:
+    """Append extracted findings only when they belong to the active jurisdiction."""
+    if isinstance(extracted, dict):
+        extracted_items = [extracted]
+    elif isinstance(extracted, list):
+        extracted_items = [item for item in extracted if isinstance(item, dict)]
+    else:
+        return
+
+    for item in extracted_items:
+        item_jid = str(item.get("jurisdiction_id") or "").strip()
+        if item_jid and item_jid != target_jid:
+            logger.warning(
+                "Dropping finding %s from %s scan because jurisdiction_id=%s",
+                item.get("regulation_id", "UNKNOWN"),
+                target_jid,
+                item_jid,
+            )
+            continue
+        item["jurisdiction_id"] = target_jid
+        findings.append(item)
 
 
 # ---------------------------------------------------------------------------
@@ -136,11 +175,18 @@ def plan_node(state: ResearchState, *, llm, seeds_map: dict, db_manager) -> dict
 # Research node — executes searches and extracts structured data
 # ---------------------------------------------------------------------------
 
-def research_node(state: ResearchState, *, llm, search_tool, seeds_map: dict) -> dict:
+def research_node(
+    state: ResearchState,
+    *,
+    llm,
+    search_tool,
+    seeds_map: dict,
+    max_queries_per_jurisdiction: int = 8,
+) -> dict:
     """Execute search queries and extract structured regulation data."""
     queries = state.get("search_queries", [])
     raw_findings = []
-    structured_findings = []
+    structured_findings = list(state.get("structured_findings", []))
     token_usage = {}
 
     # Group queries by jurisdiction
@@ -159,7 +205,8 @@ def research_node(state: ResearchState, *, llm, search_tool, seeds_map: dict) ->
             if q["query"] not in seen:
                 seen.add(q["query"])
                 unique_queries.append(q)
-        unique_queries = unique_queries[:8]  # Cap at 8 queries per jurisdiction
+        query_limit = max(0, max_queries_per_jurisdiction)
+        unique_queries = unique_queries[:query_limit]
 
         for q in unique_queries:
             logger.info(f"Searching [{jid}]: {q['query']}")
@@ -195,10 +242,11 @@ def research_node(state: ResearchState, *, llm, search_tool, seeds_map: dict) ->
                 continue
 
             extracted = _safe_parse_json(response.content)
-            if isinstance(extracted, list):
-                structured_findings.extend(extracted)
-            elif isinstance(extracted, dict):
-                structured_findings.append(extracted)
+            _append_target_jurisdiction_findings(
+                structured_findings,
+                extracted,
+                target_jid=jid,
+            )
 
     # Deduplicate structured findings by regulation_id
     seen_ids = set()

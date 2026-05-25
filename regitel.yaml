@@ -5,9 +5,10 @@
 # Embeddings use a local sentence-transformer model.
 
 llm:
-  api_key: ${OPENAI_API_KEY}
-  # Responses model for planning, extraction, validation, reflection, and web search.
-  model: ${OPENAI_MODEL}
+  base_url: ${OMLX_BASE_URL}
+  api_key: ${OMLX_API_KEY}
+  # Responses model for planning, extraction, validation, and reflection.
+  model: ${OMLX_MODEL}
   # Leave null for GPT-5-class Responses models; set only for models that support it.
   temperature: null
   max_tokens: 4096
@@ -24,5 +25,8 @@ storage:
 research:
   max_reflection_iterations: 3
   confidence_threshold: 0.75
-  search_provider: openai
+  search_provider: tavily
   max_search_results_per_query: 10
+  max_queries_per_jurisdiction: 8
+  validator_batch_size: 4
+  quality_gate_reflection: true
