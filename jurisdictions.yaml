@@ -111,7 +111,7 @@
     - "OCC 2023-17 / Fed SR 23-4 (third-party risk)"
     - "NYDFS AI & Cybersecurity guidance (Oct 2024 + Oct 2025)"
     - "Treasury Financial Services AI RMF (Mar 2026)"
-    - "Colorado AI Act (Jun 2026, bank carve-out)"
+    - "Colorado AI Act SB 24-205 (effective Jun 30 2026; lending in-scope; enforcement frozen Apr 2026, possible further delay to Jan 2027)"
     - "NYC LL144 (bias audits for hiring)"
     - "ECOA / FCRA fair lending statutes"
   search_terms:
@@ -120,7 +120,7 @@
     - "OCC generative AI guidance banks 2025 2026"
     - "Treasury AI risk management framework financial services"
     - "US bank GenAI governance model validation requirements"
-    - "Colorado AI Act financial institution carve-out"
+    - "Colorado AI Act SB 24-205 lending high-risk enforcement delay 2027"
     - "CFPB AI credit underwriting fair lending"
     - "FedNow AI security requirements"
 
@@ -255,12 +255,14 @@
       acronym: BCB
       url: https://www.bcb.gov.br
   key_regulations:
-    - "CMN Resolution 5,274/2025"
-    - "BCB Resolution 538/2025"
+    - "BCB Innovation Agenda 2025-2026 (AI workstream)"
+    - "LGPD (Lei Geral de Proteção de Dados) — automated decision-making"
+    - "CMN Resolution 5,274/2025 & BCB Resolution 538/2025 (cyber/cloud — relevant to GenAI vendor and ICT third-party risk, not AI-specific)"
   search_terms:
-    - "Brazil AI governance banking requirements BCB"
-    - "Brazil GenAI regulation financial institutions 2025"
-    - "BCB AI model risk management update"
+    - "BCB Banco Central Brasil agenda inovação inteligência artificial 2025 2026"
+    - "Brazil GenAI regulation financial institutions BCB AI guidance"
+    - "LGPD automated decision-making credit scoring banking"
+    - "CMN 5274 BCB 538 cyber cloud GenAI vendor third party"
 
 - id: uae
   name: United Arab Emirates
