@@ -93,6 +93,8 @@ regitel frameworks
 
 ![Coverage gap analysis output](./assets/gaps.png)
 
+![Frameworks output](./assets/frameworks.png)
+
 ## Build Vector Embeddings
 
 After scanning, build local embeddings for semantic search:
@@ -151,6 +153,40 @@ Or set via environment variable:
 ```bash
 OPENAI_MODEL=gpt-5.5
 ```
+
+## Local LLM Inference (oMLX, Ollama, LM Studio, llama.cpp)
+
+RegIntel talks to any **OpenAI-compatible** Responses/Chat endpoint, so you can swap OpenAI for a local runtime. The shipped `regitel.yaml` already wires `llm.base_url`, `llm.api_key`, and `llm.model` to `OMLX_*` environment variables — set them in `.env`:
+
+```bash
+# Example: oMLX on localhost
+OMLX_BASE_URL=http://localhost:8080/v1
+OMLX_API_KEY=sk-local            # any non-empty placeholder
+OMLX_MODEL=mlx-community/Qwen2.5-32B-Instruct-4bit
+```
+
+The same env-var triple works for Ollama (`http://localhost:11434/v1`), LM Studio (`http://localhost:1234/v1`), and any `llama.cpp` server with the OpenAI-compatible flag.
+
+**Switch web search off OpenAI.** OpenAI's hosted `web_search` tool is not exposed by local endpoints. Set Tavily as the search provider so research runs still have a live source:
+
+```yaml
+# regitel.yaml
+research:
+  search_provider: tavily
+```
+
+```bash
+# .env
+TAVILY_API_KEY=tvly-...
+```
+
+**Run with `--quick`.** Local models typically have smaller context windows and weaker structured-output adherence than GPT-5-class Responses models. `--quick` reduces query fan-out and caps reflection to one repair pass:
+
+```bash
+regitel scan -j eu --quick
+```
+
+The validator and reflection agents expect clean JSON; mid-to-large instruct models with strong JSON adherence work best. Very small models tend to break on the structured-output schema.
 
 ## Troubleshooting
 

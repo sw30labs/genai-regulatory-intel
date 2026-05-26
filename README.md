@@ -69,15 +69,15 @@ regitel doctor
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                     RegIntel CLI                        │
-│  (Click + Rich)                                          │
+│  (Click + Rich)                                         │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │  Research Agent ──→ OpenAI Responses Web Search         │
-│       ↓                                                  │
-│  Validator Agent                                         │
-│       ↓                                                  │
+│       ↓                                                 │
+│  Validator Agent                                        │
+│       ↓                                                 │
 │  Reflection Agent (quality gate, hallucination check)   │
-│       ↓                                                  │
+│       ↓                                                 │
 │  Persister Agent (SQLite + ChromaDB)                    │
 │                                                         │
 │  └── LLM inference via OpenAI Responses API             │
@@ -86,7 +86,10 @@ regitel doctor
 ```
 
 Live research uses OpenAI for both LLM inference and hosted web search. Embeddings run locally via sentence-transformers.
-For local OpenAI-compatible inference, such as oMLX, use `--quick` to reduce query fan-out and cap reflection to one repair pass while still running validation.
+
+### Local LLM inference
+
+LLM inference can be swapped for any OpenAI-compatible local runtime — **oMLX, Ollama, LM Studio, llama.cpp**. Point `llm.base_url` at the local endpoint via the `OMLX_BASE_URL` / `OMLX_API_KEY` / `OMLX_MODEL` environment variables (already wired in `regitel.yaml`), and set `research.search_provider: tavily` since OpenAI's hosted `web_search` tool is not available on local endpoints. Use `--quick` to reduce query fan-out and cap reflection to one repair pass. See [QUICKSTART.md](./QUICKSTART.md#local-llm-inference-omlx-ollama-lm-studio-llamacpp) for full setup.
 
 ## GenAI Regulatory Domain Coverage
 
@@ -101,6 +104,12 @@ For local OpenAI-compatible inference, such as oMLX, use `--quick` to reduce que
 | Automated Decision-Making | ADADRA, CFPB consent decrees on AI/GenAI decisions |
 | ICT Third-Party Risk | DORA, FFIEC guidance on GenAI vendors and model supply chains |
 | Security Controls | Mandatory vs recommended cybersecurity controls for GenAI systems |
+
+
+## Example Output
+
+![Frameworks output](./assets/frameworks.png){: style="width: 50%;"}
+
 
 ## Tech Stack
 
